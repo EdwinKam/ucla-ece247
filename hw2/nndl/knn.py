@@ -45,7 +45,7 @@ class KNN(object):
         #   Compute the distance between the ith test point and the jth       
         #   training point using norm(), and store the result in dists[i, j].     
         # ================================================================ #
-
+        dists[i, j] = norm(self.X_train[j] - X[i])
         pass
 
         # ================================================================ #
@@ -82,6 +82,17 @@ class KNN(object):
     #   a shape (M,) array, adding them together produces a shape (N, M) 
     #   array.
     # ================================================================ #
+   
+    # diff = X[:, np.newaxis, :] - self.X_train[np.newaxis, :, :] # basically we have a new test x train x 3072 shape from a test x 3072 - train x 3072, so we just do [train, dummy, 3072] - [dummy, train, 3072]
+    # dists = np.sqrt(np.sum(diff**2, axis=2))
+    # the above solution is expensive, so try to do some math first
+    # (x-y)^2 = x^2 - 2xTy + y^2
+    X_square = np.sum(X**2, axis=1)  # sum of the 3072 of each index, need axis other wise it will return sum of everything
+    X_square = X_square[:, np.newaxis]  # reshape to (num_test, 1)
+    cross_term = X @ self.X_train.T
+    X_train_square = np.sum(self.X_train**2, axis=1)  # sum of the 3072 of each index
+    X_train_square = X_train_square[np.newaxis, :]  # reshape to (1, num_train)
+    dists = np.sqrt(X_square - 2 * cross_term + X_train_square)
 
     pass
 
@@ -111,6 +122,15 @@ class KNN(object):
       # A list of length k storing the labels of the k nearest neighbors to
       # the ith test point.
       closest_y = []
+      sorted_y = np.argsort(dists[i])
+      sorted_5 = sorted_y[:5]
+      # for j in sorted_5:
+      #   print(dists[i, j])
+      # print('done')
+      top_k = sorted_y[:k]
+      labeled_y = self.y_train[top_k]
+      y_pred[i] = np.bincount(labeled_y).argmax()
+      # print(y_pred[i])
       # ================================================================ #
       # YOUR CODE HERE:
       #   Use the distances to calculate and then store the labels of 
