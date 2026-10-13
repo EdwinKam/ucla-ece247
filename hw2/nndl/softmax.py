@@ -40,6 +40,18 @@ class Softmax(object):
     #   set margins, and then normalize the loss by the number of 
     #   training examples.)
     # ================================================================ #
+    # get score for all N
+    scores = X @ self.W.T # shape: (N, C)
+    # do this to prevent large score because we will need to do np.exp
+    scores -= np.max(scores, axis=1, keepdims=True)  # for numerical stability
+    # loop over N, number of samples
+    softmax_sum = 0.0
+    for i in range(X.shape[0]):
+      true_class = y[i]
+      e_true_class_score = np.exp(scores[i][true_class])
+      e_all_scores = np.sum(np.exp(scores[i]))
+      softmax_sum -= np.log(e_true_class_score/e_all_scores)
+    loss = softmax_sum / X.shape[0] # get score for all N
     pass
     
     # ================================================================ #
