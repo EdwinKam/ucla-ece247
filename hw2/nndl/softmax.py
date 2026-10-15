@@ -46,6 +46,7 @@ class Softmax(object):
     scores -= np.max(scores, axis=1, keepdims=True)  # for numerical stability
     # loop over N, number of samples
     softmax_sum = 0.0
+    # calculate Cross Entropy Loss
     for i in range(X.shape[0]):
       true_class = y[i]
       e_true_class_score = np.exp(scores[i][true_class])
@@ -71,13 +72,35 @@ class Softmax(object):
     # Initialize the loss and gradient to zero.
     loss = 0.0
     grad = np.zeros_like(self.W)
-  
+
     # ================================================================ #
     # YOUR CODE HERE:
     #   Calculate the softmax loss and the gradient. Store the gradient
     #   as the variable grad.
     # ================================================================ #
-    pass
+
+    scores = X @ self.W.T # shape: (N, C)
+    # do this to prevent large score because we will need to do np.exp
+    scores -= np.max(scores, axis=1, keepdims=True)  # for numerical stability
+    # convert to probability
+    probabilities_all_x = np.zeros_like(scores)
+    for i in range(len(scores)):
+      probabilities_x_i = []
+      e_x_i = []
+      for c in scores[i]:
+        e_x_i.append(np.exp(c))
+      sum_e_x_i = np.sum(e_x_i)
+      for c in e_x_i:
+        probabilities_x_i.append(c / sum_e_x_i)
+      probabilities_all_x[i] = probabilities_x_i
+
+    y_one_hot = np.zeros_like(probabilities_all_x)
+    for i in range(len(y)):
+      y_one_hot[i][y[i]] = 1
+
+    grad = ((probabilities_all_x - y_one_hot).T @ X) / X.shape[0]
+    print(grad.shape)
+    loss = self.loss(X, y)
     
     # ================================================================ #
     # END YOUR CODE HERE
@@ -118,6 +141,25 @@ class Softmax(object):
     # YOUR CODE HERE:
     #   Calculate the softmax loss and gradient WITHOUT any for loops.
     # ================================================================ #
+    scores = X @ self.W.T # shape: (N, C)
+    # do this to prevent large score because we will need to do np.exp
+    scores -= np.max(scores, axis=1, keepdims=True)  # for numerical stability
+    # convert to probability
+    probabilities_all_x = np.zeros_like(scores) # shape: (N, C)
+    exp_scores = np.exp(scores) # shape: (N, C)
+    exp_sum = np.sum(exp_scores, axis=1, keepdims=True) # shape: (N, 1)
+    probabilities_all_x = exp_scores / exp_sum # shape: (N, C)
+    y_one_hot = np.eye(probabilities_all_x.shape[1])[y] # shape: (N, C) y-shape: (N,), so first param of eye() is C
+    '''
+    y_one_hot is like [0 0 1]
+                      [0 1 0]
+                      [0 0 1]
+    '''
+    grad = ((probabilities_all_x - y_one_hot).T @ X) / X.shape[0]
+    # so probabilities_all_x * y_one_hot I basically getting only the true class probably, then collapse to (N, ) using sum
+    loss = -np.sum(np.log(np.sum(probabilities_all_x * y_one_hot, axis = 1))) / y.shape[0]
+
+        
     pass
     
     # ================================================================ #
@@ -166,7 +208,9 @@ class Softmax(object):
       #   in the dataset.  Use np.random.choice.  It's okay to sample with
       #   replacement.
       # ================================================================ #
-      pass
+      random_batch = np.random.choice(num_train, batch_size)
+      X_batch = X[random_batch]
+      y_batch = y[random_batch]
       # ================================================================ #
       # END YOUR CODE HERE
       # ================================================================ #
@@ -179,6 +223,7 @@ class Softmax(object):
       # YOUR CODE HERE:
       #   Update the parameters, self.W, with a gradient step 
       # ================================================================ #
+      self.W -= grad * learning_rate
       pass
 
       # ================================================================ #
