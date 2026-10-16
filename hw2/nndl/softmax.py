@@ -250,7 +250,9 @@ class Softmax(object):
     # YOUR CODE HERE:
     #   Predict the labels given the training data.
     # ================================================================ #
-    pass
+    # W (C, D)
+    y_scores = X @ self.W.T # (N, C)
+    y_pred = np.argmax(y_scores, axis = 1)
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
