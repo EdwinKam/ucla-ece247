@@ -262,7 +262,7 @@ class FullyConnectedNet(object):
     relu1_out, relu1_cache = relu_forward(affine1_out)
     affine2_out, cache2 = affine_forward(relu1_out, W2, self.params['b2'])
     relu2_out, relu2_cache = relu_forward(affine2_out)
-    scores, cache3 = affine_forward(relu1_out, W3, self.params['b3'])
+    scores, cache3 = affine_forward(relu2_out, W3, self.params['b3'])
     pass
 
     # ================================================================ #
@@ -281,12 +281,12 @@ class FullyConnectedNet(object):
     #   Be sure your L2 regularization includes a 0.5 factor.
     # ================================================================ #
     loss, dscores = softmax_loss(scores, y)
-    loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+    loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(W3 * W3))
 
     dhidden3, dw3, db3 = affine_backward(dscores, cache3)
     drelu2 = relu_backward(dhidden3, relu2_cache)
     dhidden2, dw2, db2 = affine_backward(drelu2, cache2)
-    drelu1 = relu_backward(dhidden2, relu2_cache)
+    drelu1 = relu_backward(dhidden2, relu1_cache)
     _, dw1, db1 = affine_backward(drelu1, cache1)
 
     grads['W1'] = dw1 + self.reg * W1
