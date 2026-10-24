@@ -55,8 +55,8 @@ class TwoLayerNet(object):
     network.
 
     Inputs:
-    - X: Input data of shape (N5, D4). Each X[i] is a training sample.
-    - y: (C,) Vector of training labels. y[i] is the label for X[i], and each y[i] is
+    - X: Input data of shape (N, D). Each X[i] is a training sample.
+    - y: (N,) vector of training labels. y[i] is the label for X[i], and each y[i] is
       an integer in the range 0 <= y[i] < C. This parameter is optional; if it
       is not passed then we only return scores, and if it is passed then we
       instead return the loss and gradients.
@@ -201,15 +201,9 @@ class TwoLayerNet(object):
     val_acc_history = []
 
     for it in np.arange(num_iters):
-      X_batch = None
-      y_batch = None
-
-      # ================================================================ #
-      # YOUR CODE HERE:
-  	  # 	Create a minibatch by sampling batch_size samples randomly.
-  	  # ================================================================ #
-      pass
-
+      indices = np.random.choice(num_train, batch_size, replace=True)
+      X_batch = X[indices]
+      y_batch = y[indices]
       # ================================================================ #
       # END YOUR CODE HERE
       # ================================================================ #
@@ -223,9 +217,10 @@ class TwoLayerNet(object):
   	  # 	Perform a gradient descent step using the minibatch to update
 	  # 	all parameters (i.e., W1, W2, b1, and b2).
   	  # ================================================================ #
-
-      pass
-
+      self.params['W1'] -= learning_rate * grads['W1']
+      self.params['b1'] -= learning_rate * grads['b1']
+      self.params['W2'] -= learning_rate * grads['W2']
+      self.params['b2'] -= learning_rate * grads['b2']
       # ================================================================ #
       # END YOUR CODE HERE
       # ================================================================ #
@@ -271,6 +266,17 @@ class TwoLayerNet(object):
     # YOUR CODE HERE:
     # 	Predict the class given the input data.
     # ================================================================ #
+    W1, b1 = self.params['W1'], self.params['b1'] # W1 has shape (H, D)
+    W2, b2 = self.params['W2'], self.params['b2'] # W2 has shape (C, H)
+    hidden_1 = X @ W1.T + b1
+    # apply relu
+    hidden_1 = np.maximum(0, hidden_1)
+    # second layer
+    scores = hidden_1 @ W2.T + b2
+    scores = scores - np.max(scores, axis=1, keepdims=True)
+    scores_exp = np.exp(scores)
+    probablities = scores_exp / np.sum(scores_exp, axis=1, keepdims=True)
+    y_pred = np.argmax(probablities, axis=1)
     pass
 
 
