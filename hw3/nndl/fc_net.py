@@ -55,7 +55,11 @@ class TwoLayerNet(object):
     #   The dimensions of W1 should be (input_dim, hidden_dim) and the
     #   dimensions of W2 should be (hidden_dims, num_classes)
     # ================================================================ #
-
+    self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dims)
+    self.params['W2'] = weight_scale * np.random.randn(hidden_dims, num_classes)
+    # b should have the same shape as the second dimension of w
+    self.params['b1'] = np.zeros(hidden_dims)
+    self.params['b2'] = np.zeros(num_classes)
     pass
 
     # ================================================================ #
@@ -89,8 +93,11 @@ class TwoLayerNet(object):
     #   the class scores as the variable 'scores'.  Be sure to use the layers
     #   you prior implemented.
     # ================================================================ #    
-    
-    pass
+    W1 = self.params['W1']
+    W2 = self.params['W2']
+    affine1_out, cache1 = affine_forward(X, W1, self.params['b1'])
+    relu1_out, relu_cache = relu_forward(affine1_out)
+    scores, cache2 = affine_forward(relu1_out, W2, self.params['b2'])
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -115,7 +122,17 @@ class TwoLayerNet(object):
     #   And be sure to use the layers you prior implemented.
     # ================================================================ #    
     
-    pass
+    loss, dscores = softmax_loss(scores, y)
+    loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+
+    dhidden, dw2, db2 = affine_backward(dscores, cache2)
+    drelu = relu_backward(dhidden, relu_cache)
+    _, dw1, db1 = affine_backward(drelu, cache1)
+
+    grads['W1'] = dw1 + self.reg * W1
+    grads['b1'] = db1
+    grads['W2'] = dw2 + self.reg * W2
+    grads['b2'] = db2
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -179,7 +196,13 @@ class FullyConnectedNet(object):
     #   so that each parameter has mean 0 and standard deviation weight_scale.
     # ================================================================ #
     
-    pass
+    self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dims[0])
+    self.params['W2'] = weight_scale * np.random.randn(hidden_dims[0], hidden_dims[1])
+    self.params['W3'] = weight_scale * np.random.randn(hidden_dims[1], num_classes)
+    # b should have the same shape as the second dimension of w
+    self.params['b1'] = np.zeros(hidden_dims[0])
+    self.params['b2'] = np.zeros(hidden_dims[1])
+    self.params['b3'] = np.zeros(num_classes)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -232,7 +255,14 @@ class FullyConnectedNet(object):
     #   Implement the forward pass of the FC net and store the output
     #   scores as the variable "scores".
     # ================================================================ #
-
+    W1 = self.params['W1']
+    W2 = self.params['W2']
+    W3 = self.params['W3']
+    affine1_out, cache1 = affine_forward(X, W1, self.params['b1'])
+    relu1_out, relu1_cache = relu_forward(affine1_out)
+    affine2_out, cache2 = affine_forward(relu1_out, W2, self.params['b2'])
+    relu2_out, relu2_cache = relu_forward(affine2_out)
+    scores, cache3 = affine_forward(relu1_out, W3, self.params['b3'])
     pass
 
     # ================================================================ #
@@ -250,9 +280,21 @@ class FullyConnectedNet(object):
     #   in the grads dict, so that grads[k] is the gradient of self.params[k]
     #   Be sure your L2 regularization includes a 0.5 factor.
     # ================================================================ #
+    loss, dscores = softmax_loss(scores, y)
+    loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
 
-    pass
+    dhidden3, dw3, db3 = affine_backward(dscores, cache3)
+    drelu2 = relu_backward(dhidden3, relu2_cache)
+    dhidden2, dw2, db2 = affine_backward(drelu2, cache2)
+    drelu1 = relu_backward(dhidden2, relu2_cache)
+    _, dw1, db1 = affine_backward(drelu1, cache1)
 
+    grads['W1'] = dw1 + self.reg * W1
+    grads['b1'] = db1
+    grads['W2'] = dw2 + self.reg * W2
+    grads['b2'] = db2
+    grads['W3'] = dw3 + self.reg * W3
+    grads['b3'] = db3
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
