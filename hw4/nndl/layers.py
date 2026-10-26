@@ -11,6 +11,7 @@ permission to use this code.  To see the original version, please visit
 cs231n.stanford.edu.  
 """
 
+
 def affine_forward(x, w, b):
   """
   Computes the forward pass for an affine (fully-connected) layer.
@@ -36,15 +37,15 @@ def affine_forward(x, w, b):
   #   of w are D x M, which is the transpose of what we did in earlier 
   #   assignments.
   # ================================================================ #
-
-  pass
-
+  x_flat = x.reshape(x.shape[0], -1)
+  out = x_flat @ w + b
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
     
   cache = (x, w, b)
   return out, cache
+
 
 def affine_backward(dout, cache):
   """
@@ -53,9 +54,8 @@ def affine_backward(dout, cache):
   Inputs:
   - dout: Upstream derivative, of shape (N, M)
   - cache: Tuple of:
-    - x: A numpy array containing input data, of shape (N, d_1, ..., d_k)
-    - w: A numpy array of weights, of shape (D, M)
-    - b: A numpy array of biases, of shape (M,)
+    - x: Input data, of shape (N, d_1, ... d_k)
+    - w: Weights, of shape (D, M)
 
   Returns a tuple of:
   - dx: Gradient with respect to x, of shape (N, d1, ..., d_k)
@@ -68,14 +68,31 @@ def affine_backward(dout, cache):
   # ================================================================ #
   # YOUR CODE HERE:
   #   Calculate the gradients for the backward pass.
-  # Notice:  
-  #   dout is N x M
-  #   dx should be N x d1 x ... x dk; it relates to dout through multiplication with w, which is D x M
-  #   dw should be D x M; it relates to dout through multiplication with x, which is N x D after reshaping
-  #   db should be M; it is just the sum over dout examples
   # ================================================================ #
 
-  pass
+  # dout is N x M
+  # dx should be N x d1 x ... x dk; it relates to dout through multiplication with w, which is D x M
+  # dw should be D x M; it relates to dout through multiplication with x, which is N x D after reshaping
+  # db should be M; it is just the sum over dout examples
+  # out = loss
+  # out = xw + b
+  # dout = given
+
+  x_flat = x.reshape(x.shape[0], -1)
+
+  # dw = x * dout
+  # DM. ND.   NM
+  # adjust to correct dimension
+  dw = x_flat.T @ dout
+
+  # dx = w @ dout
+  # ND.  DM.  NM
+  # adjust to correct dimension
+  dx = (dout @ w.T).reshape(x.shape)
+
+  # db = dout
+  # M.    NM
+  db = np.sum(dout.T, axis=1)
 
   # ================================================================ #
   # END YOUR CODE HERE
@@ -99,12 +116,14 @@ def relu_forward(x):
   #   Implement the ReLU forward pass.
   # ================================================================ #
 
+  out = np.maximum(0, x)
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
  
   cache = x
   return out, cache
+
 
 def relu_backward(dout, cache):
   """
@@ -123,7 +142,9 @@ def relu_backward(dout, cache):
   # YOUR CODE HERE:
   #   Implement the ReLU backward pass
   # ================================================================ #
-
+  dx = dout.copy()
+  dx[x <= 0] = 0
+  # ReLU directs linearly to those > 0
     
   # ================================================================ #
   # END YOUR CODE HERE
