@@ -75,7 +75,8 @@ def sgd_momentum(w, dw, config=None):
   #   Implement the momentum update formula.  Return the updated weights
   #   as next_w, and the updated velocity as v.
   # ================================================================ #
-  
+  v = config['momentum'] * v - config['learning_rate'] * dw
+  next_w = w + v
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -105,7 +106,9 @@ def sgd_nesterov_momentum(w, dw, config=None):
   #   Implement the momentum update formula.  Return the updated weights
   #   as next_w, and the updated velocity as v.
   # ================================================================ #
-
+  v_prev = v
+  v = config['momentum'] * v_prev - config['learning_rate'] * dw
+  next_w = w - config['momentum'] * v_prev + (1 + config['momentum']) * v
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -133,7 +136,10 @@ def rmsprop(w, dw, config=None):
   config.setdefault('a', np.zeros_like(w))
 
   next_w = None
-
+  learning_rate = config['learning_rate']
+  epsilon = config['epsilon']
+  decay_rate = config['decay_rate']
+  a = config['a']
   # ================================================================ #
   # YOUR CODE HERE:
   #   Implement RMSProp.  Store the next value of w as next_w.  You need
@@ -141,7 +147,9 @@ def rmsprop(w, dw, config=None):
   #   moment gradients, so they can be used for future gradients. Concretely,
   #   config['a'] corresponds to "a" in the lecture notes.
   # ================================================================ #
-
+  a = decay_rate * a + (1 - decay_rate) * (dw ** 2)
+  next_w = w - learning_rate * dw / (np.sqrt(a) + epsilon)
+  config['a'] = a
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -171,7 +179,7 @@ def adam(w, dw, config=None):
   config.setdefault('v', np.zeros_like(w))
   config.setdefault('a', np.zeros_like(w))
   config.setdefault('t', 0)
-  
+
   next_w = None
 
   # ================================================================ #
@@ -181,7 +189,25 @@ def adam(w, dw, config=None):
   #   moment gradients, and in config['v'] the moving average of the
   #   first moments.  Finally, store in config['t'] the increasing time.
   # ================================================================ #
+  config['t'] += 1
+  t = config['t']
+  beta1 = config['beta1']
+  beta2 = config['beta2']
+  lr = config['learning_rate']
+  epsilon = config['epsilon']
+  # In this notebook's API, v stores the first moment and a the second.
+  v = beta1 * config['v'] + (1 - beta1) * dw
+  a = beta2 * config['a'] + (1 - beta2) * (dw ** 2)
 
+  v_hat = v / (1 - beta1 ** t)
+  a_hat = a / (1 - beta2 ** t)
+
+  next_w = w - lr * v_hat / (
+    np.sqrt(a_hat) + epsilon
+  )
+
+  config['v'] = v
+  config['a'] = a
   # ================================================================ #
   # END YOUR CODE HERE
   # ================================================================ #
@@ -191,4 +217,3 @@ def adam(w, dw, config=None):
   
   
   
-
