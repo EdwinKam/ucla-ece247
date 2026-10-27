@@ -326,13 +326,12 @@ class FullyConnectedNet(object):
     #   so that each parameter has mean 0 and standard deviation weight_scale.
     # ================================================================ #
     
-    self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dims[0])
-    self.params['W2'] = weight_scale * np.random.randn(hidden_dims[0], hidden_dims[1])
-    self.params['W3'] = weight_scale * np.random.randn(hidden_dims[1], num_classes)
-    # b should have the same shape as the second dimension of w
-    self.params['b1'] = np.zeros(hidden_dims[0])
-    self.params['b2'] = np.zeros(hidden_dims[1])
-    self.params['b3'] = np.zeros(num_classes)
+    layer_dims = [input_dim] + list(hidden_dims) + [num_classes]
+    for i in range(1, self.num_layers + 1):
+      self.params['W%d' % i] = weight_scale * np.random.randn(
+        layer_dims[i - 1], layer_dims[i]
+      )
+      self.params['b%d' % i] = np.zeros(layer_dims[i])
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -385,15 +384,19 @@ class FullyConnectedNet(object):
     #   Implement the forward pass of the FC net and store the output
     #   scores as the variable "scores".
     # ================================================================ #
-    W1 = self.params['W1']
-    W2 = self.params['W2']
-    W3 = self.params['W3']
-    affine1_out, cache1 = affine_forward(X, W1, self.params['b1'])
-    relu1_out, relu1_cache = relu_forward(affine1_out)
-    affine2_out, cache2 = affine_forward(relu1_out, W2, self.params['b2'])
-    relu2_out, relu2_cache = relu_forward(affine2_out)
-    scores, cache3 = affine_forward(relu2_out, W3, self.params['b3'])
-    pass
+    hidden_caches = []
+    out = X
+    for i in range(1, self.num_layers):
+      out, affine_cache = affine_forward(
+        out, self.params['W%d' % i], self.params['b%d' % i]
+      )
+      out, relu_cache = relu_forward(out)
+      hidden_caches.append((affine_cache, relu_cache))
+
+    scores, final_cache = affine_forward(
+      out, self.params['W%d' % self.num_layers],
+      self.params['b%d' % self.num_layers]
+    )
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -411,20 +414,22 @@ class FullyConnectedNet(object):
     #   Be sure your L2 regularization includes a 0.5 factor.
     # ================================================================ #
     loss, dscores = softmax_loss(scores, y)
-    loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(W3 * W3))
+    for i in range(1, self.num_layers + 1):
+      W = self.params['W%d' % i]
+      loss += 0.5 * self.reg * np.sum(W * W)
 
-    dhidden3, dw3, db3 = affine_backward(dscores, cache3)
-    drelu2 = relu_backward(dhidden3, relu2_cache)
-    dhidden2, dw2, db2 = affine_backward(drelu2, cache2)
-    drelu1 = relu_backward(dhidden2, relu1_cache)
-    _, dw1, db1 = affine_backward(drelu1, cache1)
+    dout, dw, db = affine_backward(dscores, final_cache)
+    grads['W%d' % self.num_layers] = (
+      dw + self.reg * self.params['W%d' % self.num_layers]
+    )
+    grads['b%d' % self.num_layers] = db
 
-    grads['W1'] = dw1 + self.reg * W1
-    grads['b1'] = db1
-    grads['W2'] = dw2 + self.reg * W2
-    grads['b2'] = db2
-    grads['W3'] = dw3 + self.reg * W3
-    grads['b3'] = db3
+    for i in range(self.num_layers - 1, 0, -1):
+      affine_cache, relu_cache = hidden_caches[i - 1]
+      dout = relu_backward(dout, relu_cache)
+      dout, dw, db = affine_backward(dout, affine_cache)
+      grads['W%d' % i] = dw + self.reg * self.params['W%d' % i]
+      grads['b%d' % i] = db
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
