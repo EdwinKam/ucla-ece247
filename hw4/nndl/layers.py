@@ -194,6 +194,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
   eps = bn_param.get('eps', 1e-5)
   momentum = bn_param.get('momentum', 0.9)
 
+  print(x.shape)
   N, D = x.shape
   running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
   running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
@@ -211,8 +212,16 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     #     (4) Store any variables you may need for the backward pass in
     #         the 'cache' variable.
     # ================================================================ #
+    sample_mean = np.mean(x, axis=0)
+    sample_var = np.var(x, axis=0)
+    running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+    running_var = momentum * running_var + (1 - momentum) * sample_var
 
-    pass
+    x_hat = (x - sample_mean) / np.sqrt(sample_var + eps)
+
+    out = gamma * x_hat + beta
+
+    cache = (x, sample_mean, sample_var, x_hat, gamma, eps)
 
 
     # ================================================================ #
@@ -227,7 +236,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     #   Store the output as 'out'.
     # ================================================================ #
 
-    pass
+    x_hat = (x - running_mean) / np.sqrt(running_var + eps)
+    out = gamma * x_hat + beta
+    cache = None
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -260,11 +271,57 @@ def batchnorm_backward(dout, cache):
   - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
   """
   dx, dgamma, dbeta = None, None, None
-
   # ================================================================ #
   # YOUR CODE HERE:
   #   Implement the batchnorm backward pass, calculating dx, dgamma, and dbeta.
   # ================================================================ #
+  x, sample_mean, sample_var, x_hat, gamma, eps = cache
+  N, D = x.shape
+  print(x_hat.shape)
+  print(sample_var.shape)
+  # dbeta = 1 * dL, but need to addition to all because beta is scalar
+  dbeta = np.sum(dout, axis=0)
+
+  # yx^ + beta = L
+  # dy = x^ * dL
+  dgamma = np.sum(dout * x_hat, axis=0)
+
+  # dx^ = ydL
+  dx_hat = gamma * dout
+
+  # dvar = a^2
+  # x_hat = Xmn * inv_std
+  # = Xmn * 1/(a2 + e)^-1/2
+  # dX^/dvar = -1/2Xmu (a2 + e) ^-3/2
+  # dL/dvar = -1/2Xmu (a2 + e) ^-3/2 * dx_hat, so need to swap order
+  # (D, ).    (N, D).  (N, D) element wise multiply first, then sum
+  # dimension check, Xmu is (N,D) but var is (D, ) so need summatio
+  xmu = x - sample_mean
+  dvar = -0.5 * np.sum(dx_hat * xmu * (sample_var + eps) ** (-3/2), axis=0)
+
+  # dxmu
+  # path 1
+  # a2 = 1/N sum(x-u)2
+  # d2a = dvar
+  # da/dxmu = 1/N 2xmnu * dvar no sum because derivative is calculate per element
+  dxmu_path1 = 2 / N * xmu * dvar
+  # path 2
+  # x^ = Xmn * inv_std
+  # dXmn = inv_std
+  inv_std = 1 / (sample_var + eps) ** (1/2)
+  dxmu_path2 = inv_std * dx_hat
+  dxmu = dxmu_path1 + dxmu_path2
+
+  # du
+  # xmu = x - u
+  du = -1 * np.sum(dxmu, axis=0)
+
+  dx = dxmu
+
+  # dx also affect du so
+  # u = 1/N sum(x)
+  dx += 1/N * du
+
 
   # ================================================================ #
   # END YOUR CODE HERE
