@@ -328,16 +328,13 @@ class FullyConnectedNet(object):
     
     layer_dims = [input_dim] + list(hidden_dims) + [num_classes]
     for i in range(1, self.num_layers + 1):
-      if self.use_batchnorm:
-        self.params['gamma%d' % i] = weight_scale * np.random.randn(
-          layer_dims[i - 1], layer_dims[i]
-        )
+      self.params['W%d' % i] = weight_scale * np.random.randn(
+        layer_dims[i - 1], layer_dims[i]
+      )
+      self.params['b%d' % i] = np.zeros(layer_dims[i])
+      if self.use_batchnorm and i < self.num_layers:
+        self.params['gamma%d' % i] = np.ones(layer_dims[i])
         self.params['beta%d' % i] = np.zeros(layer_dims[i])
-      else:
-        self.params['W%d' % i] = weight_scale * np.random.randn(
-          layer_dims[i - 1], layer_dims[i]
-        )
-        self.params['b%d' % i] = np.zeros(layer_dims[i])
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -381,7 +378,7 @@ class FullyConnectedNet(object):
       self.dropout_param['mode'] = mode   
     if self.use_batchnorm:
       for bn_param in self.bn_params:
-        bn_param[mode] = mode
+        bn_param['mode'] = mode
 
     scores = None
     
@@ -392,33 +389,24 @@ class FullyConnectedNet(object):
     # ================================================================ #
     hidden_caches = []
     out = X
-    if self.use_batchnorm:
-      for i in range(1, self.num_layers):
-        out, affine_cache = batchnorm_forward(
-          out, self.params['gamma%d' % i], self.params['beta%d' % i], self.bn_params[i]
-        )
-        out, relu_cache = relu_forward(out)
-        hidden_caches.append((affine_cache, relu_cache))
-
-      # final layer no need relu
-      scores, final_cache = batchnorm_forward(
-        out, self.params['gamma%d' % self.num_layers],
-        self.params['beta%d' % self.num_layers],
-        self.bn_params[i]
+    for i in range(1, self.num_layers):
+      out, affine_cache = affine_forward(
+        out, self.params['W%d' % i], self.params['b%d' % i]
       )
-    else:
-      for i in range(1, self.num_layers):
-        out, affine_cache = affine_forward(
-          out, self.params['W%d' % i], self.params['b%d' % i]
+      bn_cache = None
+      if self.use_batchnorm:
+        out, bn_cache = batchnorm_forward(
+          out, self.params['gamma%d' % i], self.params['beta%d' % i],
+          self.bn_params[i - 1]
         )
-        out, relu_cache = relu_forward(out)
-        hidden_caches.append((affine_cache, relu_cache))
+      out, relu_cache = relu_forward(out)
+      hidden_caches.append((affine_cache, bn_cache, relu_cache))
 
-      # final layer no need relu
-      scores, final_cache = affine_forward(
-        out, self.params['W%d' % self.num_layers],
-        self.params['b%d' % self.num_layers]
-      )
+    # The output layer produces class scores, so it has no batchnorm or ReLU.
+    scores, final_cache = affine_forward(
+      out, self.params['W%d' % self.num_layers],
+      self.params['b%d' % self.num_layers]
+    )
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -436,45 +424,25 @@ class FullyConnectedNet(object):
     #   Be sure your L2 regularization includes a 0.5 factor.
     # ================================================================ #
     loss, dscores = softmax_loss(scores, y)
-    # plus regularization
     for i in range(1, self.num_layers + 1):
       W = self.params['W%d' % i]
       loss += 0.5 * self.reg * np.sum(W * W)
 
-    if self.use_batchnorm:
-      dout, dgamma, dbeta = batchnorm_backward(dscores, final_cache)
-      grads['gamma%d' % self.num_layers] = (
-        dw + self.reg * self.params['gamma%d' % self.num_layers]
-      )
-      grads['beta%d' % self.num_layers] = db
+    dout, dw, db = affine_backward(dscores, final_cache)
+    final_i = self.num_layers
+    grads['W%d' % final_i] = dw + self.reg * self.params['W%d' % final_i]
+    grads['b%d' % final_i] = db
 
-      for i in range(self.num_layers - 1, 0, -1):
-        if self.use_batchnorm:
-          affine_cache, relu_cache = hidden_caches[i - 1]
-          dout = relu_backward(dout, relu_cache)
-          dout, dw, db = batchnorm_backward(dout, affine_cache)
-        affine_cache, relu_cache = hidden_caches[i - 1]
-        dout = relu_backward(dout, relu_cache)
-        dout, dw, db = batchnorm_backward(dout, affine_cache)
-        grads['gamma%d' % i] = dw + self.reg * self.params['gamma%d' % i]
-        grads['beta%d' % i] = db
-    else:
-      dout, dw, db = affine_backward(dscores, final_cache)
-      grads['W%d' % self.num_layers] = (
-        dw + self.reg * self.params['W%d' % self.num_layers]
-      )
-      grads['b%d' % self.num_layers] = db
-
-      for i in range(self.num_layers - 1, 0, -1):
-        if self.use_batchnorm:
-          affine_cache, relu_cache = hidden_caches[i - 1]
-          dout = relu_backward(dout, relu_cache)
-          dout, dw, db = affine_backward(dout, affine_cache)
-        affine_cache, relu_cache = hidden_caches[i - 1]
-        dout = relu_backward(dout, relu_cache)
-        dout, dw, db = affine_backward(dout, affine_cache)
-        grads['W%d' % i] = dw + self.reg * self.params['W%d' % i]
-        grads['b%d' % i] = db
+    for i in range(self.num_layers - 1, 0, -1):
+      affine_cache, bn_cache, relu_cache = hidden_caches[i - 1]
+      dout = relu_backward(dout, relu_cache)
+      if self.use_batchnorm:
+        dout, dgamma, dbeta = batchnorm_backward(dout, bn_cache)
+        grads['gamma%d' % i] = dgamma
+        grads['beta%d' % i] = dbeta
+      dout, dw, db = affine_backward(dout, affine_cache)
+      grads['W%d' % i] = dw + self.reg * self.params['W%d' % i]
+      grads['b%d' % i] = db
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #

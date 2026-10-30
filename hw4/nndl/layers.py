@@ -194,7 +194,6 @@ def batchnorm_forward(x, gamma, beta, bn_param):
   eps = bn_param.get('eps', 1e-5)
   momentum = bn_param.get('momentum', 0.9)
 
-  print(x.shape)
   N, D = x.shape
   running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
   running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
@@ -277,8 +276,6 @@ def batchnorm_backward(dout, cache):
   # ================================================================ #
   x, sample_mean, sample_var, x_hat, gamma, eps = cache
   N, D = x.shape
-  print(x_hat.shape)
-  print(sample_var.shape)
   # dbeta = 1 * dL, but need to addition to all because beta is scalar
   dbeta = np.sum(dout, axis=0)
 
