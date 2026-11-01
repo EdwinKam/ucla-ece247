@@ -400,8 +400,11 @@ class FullyConnectedNet(object):
           self.bn_params[i - 1]
         )
       out, relu_cache = relu_forward(out)
-      hidden_caches.append((affine_cache, bn_cache, relu_cache))
 
+      dropout_cache = None
+      if self.use_dropout:
+        out, dropout_cache = dropout_forward(out, self.dropout_param)
+      hidden_caches.append((affine_cache, bn_cache, relu_cache, dropout_cache))
     # The output layer produces class scores, so it has no batchnorm or ReLU.
     scores, final_cache = affine_forward(
       out, self.params['W%d' % self.num_layers],
@@ -434,7 +437,9 @@ class FullyConnectedNet(object):
     grads['b%d' % final_i] = db
 
     for i in range(self.num_layers - 1, 0, -1):
-      affine_cache, bn_cache, relu_cache = hidden_caches[i - 1]
+      affine_cache, bn_cache, relu_cache, dropout_cache = hidden_caches[i - 1]
+      if self.use_dropout:
+        dout = dropout_backward(dout, dropout_cache)
       dout = relu_backward(dout, relu_cache)
       if self.use_batchnorm:
         dout, dgamma, dbeta = batchnorm_backward(dout, bn_cache)
