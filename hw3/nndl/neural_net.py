@@ -56,7 +56,7 @@ class TwoLayerNet(object):
 
     Inputs:
     - X: Input data of shape (N, D). Each X[i] is a training sample.
-    - y: Vector of training labels. y[i] is the label for X[i], and each y[i] is
+    - y: (N,) vector of training labels. y[i] is the label for X[i], and each y[i] is
       an integer in the range 0 <= y[i] < C. This parameter is optional; if it
       is not passed then we only return scores, and if it is passed then we
       instead return the loss and gradients.
@@ -73,13 +73,12 @@ class TwoLayerNet(object):
       with respect to the loss function; has the same keys as self.params.
     """
     # Unpack variables from the params dictionary
-    W1, b1 = self.params['W1'], self.params['b1']
-    W2, b2 = self.params['W2'], self.params['b2']
+    W1, b1 = self.params['W1'], self.params['b1'] # w1 is (H, N)
+    W2, b2 = self.params['W2'], self.params['b2'] # W2 is (H1, H)
     N, D = X.shape
 
     # Compute the forward pass
     scores = None
-
     # ================================================================ #
     # YOUR CODE HERE:
 	#   Calculate the output scores of the neural network.  The result
@@ -89,7 +88,13 @@ class TwoLayerNet(object):
 	#	use a for loop in your implementation.
     # ================================================================ #
 
-    pass
+    # first layer
+    hidden_1 = X @ W1.T + b1
+    # apply relu
+    hidden_1 = np.maximum(0, hidden_1)
+    # second layer
+    scores = hidden_1 @ W2.T + b2
+    # hidden_2 should be (N, C)
     
     # ================================================================ #
     # END YOUR CODE HERE
@@ -110,9 +115,17 @@ class TwoLayerNet(object):
 	#	total loss in teh variable loss.  Multiply the regularization
 	# 	loss by 0.5 (in addition to the factor reg).
 	# ================================================================ #
-
+    # normalize it to prevent overflow
+    scores = scores - np.max(scores, axis=1, keepdims=True)
+    scores_exp = np.exp(scores)
+    probablities = scores_exp / np.sum(scores_exp, axis=1, keepdims=True)
+    # loss = -log(P.correct)
+    correct_probs = probablities[np.arange(N), y] # extract only correct probs to a list (N,)
+    loss = np.mean(-np.log(correct_probs))
+    # regularization_loss = W1^2 + W2^2, just the square sum of each entry
+    regularization_loss = np.sum(W1 * W1) + np.sum(W2 * W2)
+    loss = loss + 0.5 * reg * regularization_loss
     # scores is num_examples by num_classes
- 	pass
     # ================================================================ #
     # END YOUR CODE HERE
     # ================================================================ #
@@ -121,13 +134,36 @@ class TwoLayerNet(object):
 
     # ================================================================ #
     # YOUR CODE HERE:
-	# 	Implement the backward pass.  Compute the derivatives of the 
-	# 	weights and the biases.  Store the results in the grads
-	#	dictionary.  e.g., grads['W1'] should store the gradient for 
-	# 	W1, and be of the same size as W1.
-	# ================================================================ #
+    # 	Implement the backward pass.  Compute the derivatives of the 
+    # 	weights and the biases.  Store the results in the grads
+    #	dictionary.  e.g., grads['W1'] should store the gradient for 
+    # 	W1, and be of the same size as W1.
+    # ================================================================ #
+    dscores = probablities.copy()
+    dscores[np.arange(N), y] -= 1 # all correct class score -1
+    dscores /= N
+    # scores = hidden_1 @ W2.T + b2
+    # find b2, just 1 x dscore (upstream), chain rule
+    grads['b2'] = np.sum(dscores, axis=0)
+    grads['W2'] = dscores.T @ hidden_1 + reg * W2
 
-	pass
+    # find d of w1xT + b1 = pre_activation, call it z
+    dhidden = dscores @ W2
+    #d(relu(z) = 1 if h>0, 0, h<=0
+    #z = w1xT + b1
+    dz = dhidden.copy()
+    z = X @ W1.T + b1 
+    dz[z <= 0] = 0
+    grads['W1'] = dz.T @ X + reg * W1
+    grads['b1'] = np.sum(dz, axis=0)
+
+    """
+    input -> w1 + b1 => relu -> w2 + b2 -> softmax (convert to scores to prob) -> loss
+    find gradient of the scores
+    find dL/dw2, dL/db2
+    """
+
+    pass
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -165,15 +201,9 @@ class TwoLayerNet(object):
     val_acc_history = []
 
     for it in np.arange(num_iters):
-      X_batch = None
-      y_batch = None
-
-      # ================================================================ #
-      # YOUR CODE HERE:
-  	  # 	Create a minibatch by sampling batch_size samples randomly.
-  	  # ================================================================ #
-  	  pass
-
+      indices = np.random.choice(num_train, batch_size, replace=True)
+      X_batch = X[indices]
+      y_batch = y[indices]
       # ================================================================ #
       # END YOUR CODE HERE
       # ================================================================ #
@@ -187,9 +217,10 @@ class TwoLayerNet(object):
   	  # 	Perform a gradient descent step using the minibatch to update
 	  # 	all parameters (i.e., W1, W2, b1, and b2).
   	  # ================================================================ #
-
-  	  pass
-
+      self.params['W1'] -= learning_rate * grads['W1']
+      self.params['b1'] -= learning_rate * grads['b1']
+      self.params['W2'] -= learning_rate * grads['W2']
+      self.params['b2'] -= learning_rate * grads['b2']
       # ================================================================ #
       # END YOUR CODE HERE
       # ================================================================ #
@@ -235,6 +266,17 @@ class TwoLayerNet(object):
     # YOUR CODE HERE:
     # 	Predict the class given the input data.
     # ================================================================ #
+    W1, b1 = self.params['W1'], self.params['b1'] # W1 has shape (H, D)
+    W2, b2 = self.params['W2'], self.params['b2'] # W2 has shape (C, H)
+    hidden_1 = X @ W1.T + b1
+    # apply relu
+    hidden_1 = np.maximum(0, hidden_1)
+    # second layer
+    scores = hidden_1 @ W2.T + b2
+    scores = scores - np.max(scores, axis=1, keepdims=True)
+    scores_exp = np.exp(scores)
+    probablities = scores_exp / np.sum(scores_exp, axis=1, keepdims=True)
+    y_pred = np.argmax(probablities, axis=1)
     pass
 
 
