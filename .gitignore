@@ -18,5 +18,7 @@ bin-release/
 # information for Eclipse / Flash Builder.
 .DS_Store
 venv/
+.venv/
+hvenv/
 __pycache__/
 cifar-10-batches-py
