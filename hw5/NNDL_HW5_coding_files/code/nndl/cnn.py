@@ -139,7 +139,6 @@ class ThreeLayerConvNet:
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {"pool_height": 2, "pool_width": 2, "stride": 2}
-        print(X.shape)
         scores = None
 
         # ================================================================ #
