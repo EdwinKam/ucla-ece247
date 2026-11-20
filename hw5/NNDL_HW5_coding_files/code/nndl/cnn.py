@@ -97,6 +97,24 @@ class ThreeLayerConvNet:
         #         drawn from a Gaussian distribution with zero mean and
         #         standard deviation given by weight_scale.
         # ================================================================ #
+        C, H, W = input_dim
+        # basically W1 is just the number of (filter, filter dim)
+        self.params["W1"] = weight_scale * np.random.randn(
+            num_filters, C, filter_size, filter_size
+        )
+        self.params["b1"] = np.zeros(num_filters)
+
+        # Convolution:  32 feature maps, each 32 × 32
+        # ReLU:         32 feature maps, each 32 × 32
+        # Max pool:     32 feature maps, each 16 × 16
+        # Flatten:      32 × 16 × 16 = 8192 numbers
+        # Assumes the convolution preserves H and W, and pooling has stride 2.
+        pooled_dim = num_filters * (H // 2) * (W // 2)
+        self.params["W2"] = weight_scale * np.random.randn(pooled_dim, hidden_dim)
+        self.params["b2"] = np.zeros(hidden_dim)
+        self.params["W3"] = weight_scale * np.random.randn(hidden_dim, num_classes)
+        self.params["b3"] = np.zeros(num_classes)
+
 
         # ================================================================ #
         # END YOUR CODE HERE
@@ -121,7 +139,7 @@ class ThreeLayerConvNet:
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {"pool_height": 2, "pool_width": 2, "stride": 2}
-
+        print(X.shape)
         scores = None
 
         # ================================================================ #
@@ -129,7 +147,10 @@ class ThreeLayerConvNet:
         #   Implement the forward pass of the three layer CNN.  Store the output
         #   scores as the variable "scores".
         # ================================================================ #
-
+        # conv - relu - 2x2 max pool - affine - relu - affine - softmax
+        pool_out, cache1 = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        hidden_out, cache2 = affine_relu_forward(pool_out, W2, b2)
+        scores, cache3 = affine_forward(hidden_out, W3, b3)
         # ================================================================ #
         # END YOUR CODE HERE
         # ================================================================ #
@@ -145,7 +166,22 @@ class ThreeLayerConvNet:
         #   self.params[k] will be grads[k]).  Store the loss as "loss", and
         #   don't forget to add regularization on ALL weight matrices.
         # ================================================================ #
+        loss, dscores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * (
+            np.sum(W1 ** 2) + np.sum(W2 ** 2) + np.sum(W3 ** 2)
+        )
+        dhidden, dW3, db3 = affine_backward(dscores, cache3)
+        dpool, dW2, db2 = affine_relu_backward(dhidden, cache2)
+        dx, dW1, db1 = conv_relu_pool_backward(dpool, cache1)
 
+        grads = {
+            "W1": dW1 + self.reg * W1,
+            "b1": db1,
+            "W2": dW2 + self.reg * W2,
+            "b2": db2,
+            "W3": dW3 + self.reg * W3,
+            "b3": db3
+        }
         # ================================================================ #
         # END YOUR CODE HERE
         # ================================================================ #
