@@ -162,10 +162,13 @@ class ThreeLayerConvNet:
             hidden_out, cache2 = affine_relu_forward(pool_out, W2, b2)
             scores, cache3 = affine_forward(hidden_out, W3, b3)
         else:
+            for bn_param in self.bn_params:
+                bn_param["mode"] = "test" if y is None else "train"
             conv_out, conv_cache = conv_forward_fast(X, W1, b1, conv_param)
             norm1, bn_cache1 = spatial_batchnorm_forward(
                 conv_out, self.params["gamma1"], self.params["beta1"], self.bn_params[0]
             )
+            assert norm1 is not None, "spatial_batchnorm_forward returned None"
             relu1, relu_cache1 = relu_forward(norm1)
             pool_out, pool_cache = max_pool_forward_fast(relu1, pool_param)
 
@@ -173,6 +176,7 @@ class ThreeLayerConvNet:
             norm2, bn_cache2 = batchnorm_forward(
                 hidden, self.params["gamma2"], self.params["beta2"], self.bn_params[1]
             )
+            assert norm2 is not None, "batchnorm_forward returned None"
             hidden_out, relu_cache2 = relu_forward(norm2)
             scores, cache3 = affine_forward(hidden_out, W3, b3)
 
@@ -219,6 +223,13 @@ class ThreeLayerConvNet:
             "W3": dW3 + self.reg * W3,
             "b3": db3
         }
+        if self.use_batchnorm:
+            grads.update(
+                gamma1=dgamma1,
+                beta1=dbeta1,
+                gamma2=dgamma2,
+                beta2=dbeta2,
+            )
         # ================================================================ #
         # END YOUR CODE HERE
         # ================================================================ #

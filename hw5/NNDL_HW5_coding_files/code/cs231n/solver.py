@@ -249,6 +249,7 @@ class Solver:
         Run optimization to train the model.
         """
         num_train = self.X_train.shape[0]
+        print('useing batch')
         iterations_per_epoch = max(num_train // self.batch_size, 1)
         num_iterations = self.num_epochs * iterations_per_epoch
 
