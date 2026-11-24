@@ -189,7 +189,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     #   implemented in HW #4.
     # ================================================================ #
 
-    out, cache = None, None
+    N, C, H, W = x.shape
+    flat = x.transpose(0, 2, 3, 1).reshape(N * H * W, C)
+    out, cache = batchnorm_forward(flat, gamma, beta, bn_param)
+    out = out.reshape(N, H, W, C).transpose(0, 3, 1, 2)
 
     # ================================================================ #
     # END YOUR CODE HERE
@@ -220,7 +223,10 @@ def spatial_batchnorm_backward(dout, cache):
     #   implemented in HW #4.
     # ================================================================ #
 
-    dx, dgamma, dbeta = None, None, None
+    N, C, H, W = dout.shape
+    flat = dout.transpose(0, 2, 3, 1).reshape(N * H * W, C)
+    dx, dgamma, dbeta = batchnorm_backward(flat, cache)
+    dx = dx.reshape(N, H, W, C).transpose(0, 3, 1, 2)
 
     # ================================================================ #
     # END YOUR CODE HERE
